@@ -1271,9 +1271,13 @@ def dump_database_tier(database_tier: dict):
 
 
 def get_last_loop(offset=True) -> datetime.datetime:
+    # start=False excludes attempts that never finished cleanly (crashed or
+    # raised) -- otherwise a failed attempt's own `ran_at` would win and the
+    # incremental window would silently stop looking back past it.
     data = (
         supabase.table("loopruns")
         .select("ran_at")
+        .eq("start", False)
         .order("ran_at", desc=True)
         .limit(1)
         .execute()
@@ -1320,6 +1324,7 @@ def recent_full_scrape(hours: int = 24) -> bool:
         supabase.table("loopruns")
         .select("id")
         .eq("fullscrape", True)
+        .eq("start", False)
         .gte("ran_at", cutoff)
         .limit(1)
         .execute()

@@ -69,7 +69,11 @@ async def main():
                 if not full_scrape:
                     full_scrape = not SupabaseReader.recent_full_scrape(hours=24)
 
-            # Acquire loop lock
+            # Acquire loop lock. finish_loop_run (which clears the lock) only
+            # runs on success -- on failure the lock stays held so the next
+            # iteration's is_loop_running() check correctly sees this as an
+            # unfinished run and enters recovery mode, instead of the failure
+            # being silently erased.
             run_id = SupabaseReader.start_loop_run(full_scrape=full_scrape)
             try:
                 result = await process_loop(
@@ -79,7 +83,7 @@ async def main():
             except Exception:
                 logger.exception("process_loop failed")
                 result = None
-            finally:
+            else:
                 SupabaseReader.finish_loop_run(run_id)
 
             if recovering and result is not None:
