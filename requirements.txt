@@ -13,4 +13,4 @@ python-dotenv==1.2.2
 requests==2.33.0
 selenium==4.36.0
 supabase==2.16.0
-urllib3==2.7.0
+urllib3==2.8.0
