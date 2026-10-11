@@ -333,7 +333,7 @@ class CEGame:
     async def get_raw_ce_data(self) -> dict:
         "Returns the raw CE data."
         session = await http_session.get_session()
-        async with session.get(f"https://cedb.me/api/game/{self.ce_id}") as response:
+        async with session.get(f"https://api.cedb.me/v1/game/{self.ce_id}") as response:
             return await response.json()
 
     async def get_ce_api_game(self) -> "CEAPIGame":
@@ -404,7 +404,7 @@ class CEGame:
 
         session = await http_session.get_session()
         async with session.get(
-            f"https://cedb.me/api/game/{self.ce_id}/leaderboard"
+            f"https://api.cedb.me/v1/game/{self.ce_id}/leaderboard"
         ) as response:
             json_response = await response.json()
 

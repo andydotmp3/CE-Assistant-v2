@@ -342,7 +342,9 @@ class CEUser:
     async def get_api_user(self) -> "CEAPIUser | None":
         "Returns the CEAPIUser."
         session = await http_session.get_session()
-        async with session.get(f"https://cedb.me/api/user/{self.ce_id}/") as response:
+        async with session.get(
+            f"https://api.cedb.me/v1/user/{self.ce_id}/"
+        ) as response:
             if response.status != 200:
                 return None
             try:

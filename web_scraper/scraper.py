@@ -567,7 +567,7 @@ async def update_games(
     if not full_scrape:
         session = await http_session.get_session()
         params = {"sortBy": "updatedAt", "sortOrder": "DESC"}
-        async with session.get("https://cedb.me/api/games") as _r:
+        async with session.get("https://api.cedb.me/v1/games") as _r:
             if _r.status != 200:
                 raise RuntimeError(f"/api/games returned HTTP {_r.status}")
             response = await _r.json()
@@ -588,7 +588,7 @@ async def update_games(
         params = {"sortBy": "updatedAt", "sortOrder": "DESC", "limit": 100, "offset": 0}
         while 1:
             async with session.get(
-                "https://cedb.me/api/objectives", params=params
+                "https://api.cedb.me/v1/objectives", params=params
             ) as _r:
                 if _r.status != 200:
                     raise RuntimeError(f"/api/objectives returned HTTP {_r.status}")
@@ -823,7 +823,7 @@ async def update_users(
     else:
         logger.debug("Pulling /api/userGames/lastUpdatedAt")
         session = await http_session.get_session()
-        async with session.get("http://cedb.me/api/userGames/lastUpdatedAt") as _r:
+        async with session.get("https://api.cedb.me/v1/userGames/lastUpdatedAt") as _r:
             if _r.status != 200:
                 raise RuntimeError(
                     f"/api/userGames/lastUpdatedAt returned HTTP {_r.status}"

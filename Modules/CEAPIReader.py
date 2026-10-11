@@ -144,7 +144,7 @@ def _ce_to_game(json_response: dict) -> CEAPIGame | None:
 async def get_game(ce_id: str) -> CEAPIGame | None:
     session = await http_session.get_session()
 
-    async with session.get(f"https://cedb.me/api/game/{ce_id}") as response:
+    async with session.get(f"https://api.cedb.me/v1/game/{ce_id}") as response:
         game = await response.json()
         if game == {}:
             return None
@@ -155,7 +155,7 @@ async def get_game(ce_id: str) -> CEAPIGame | None:
 async def get_user(ce_id: str) -> CEAPIUser | None:
     session = await http_session.get_session()
 
-    async with session.get(f"https://cedb.me/api/user/{ce_id}") as response:
+    async with session.get(f"https://api.cedb.me/v1/user/{ce_id}") as response:
         user = await response.json()
         return _ce_to_user(user)
 
@@ -173,7 +173,7 @@ async def get_api_hidden_game_ids() -> list[str]:
             "ishidden": "true",
         }
         async with session.get(
-            "https://cedb.me/api/games/full", params=_params
+            "https://api.cedb.me/v1/games/full", params=_params
         ) as response:
             _json = await response.json()
         if not _json:
@@ -199,7 +199,7 @@ async def get_api_games() -> list[str]:
 
     for attempt in range(TRY_LIMIT):
         try:
-            async with session.get("https://cedb.me/api/games/ids") as response:
+            async with session.get("https://api.cedb.me/v1/games/ids") as response:
                 games = await response.json()
                 return [g["id"] for g in games]
         except Exception as exc:
@@ -242,7 +242,7 @@ async def post_users_query(ids: list[str]) -> list[CEAPIUser]:
 
 
 async def get_api_games_full(return_json=False) -> list[CEAPIGame]:
-    """Returns an array of :class:`CEAPIGame`'s grabbed from https://cedb.me/api/games/full"""
+    """Returns an array of :class:`CEAPIGame`'s grabbed from https://api.cedb.me/v1/games/full"""
     # Step 1: get the big json intact.
     PULL_LIMIT = 50  # grab this many games per API call
     TRY_LIMIT = 3  # try each batch of 'PULL LIMIT' this many times
@@ -268,7 +268,7 @@ async def get_api_games_full(return_json=False) -> list[CEAPIGame]:
             try:
                 _params = {"limit": PULL_LIMIT, "offset": (i - 1) * PULL_LIMIT}
                 async with session.get(
-                    "https://cedb.me/api/games/full", params=_params
+                    "https://api.cedb.me/v1/games/full", params=_params
                 ) as response:
                     outer_response = response
                     j = await response.json()
@@ -357,7 +357,7 @@ async def get_api_games_full(return_json=False) -> list[CEAPIGame]:
 async def get_api_users_all(
     database_user: list[CEUser] | list[str] | None = None,
 ) -> list[CEAPIUser]:
-    """Returns an array of :class:`CEUser`'s grabbed from https://cedb.me/api/users/all.
+    """Returns an array of :class:`CEUser`'s grabbed from https://api.cedb.me/v1/users/all.
     NOTE: if `database_user` is passed, this will only return the users who are CEA Registered.
     You can pass in the entire database_user here, or just a list of registered ids. Either work."""
 
@@ -397,7 +397,7 @@ async def get_api_users_all(
 
             # pull the data and json-ify it
             async with session.get(
-                "https://cedb.me/api/users/all", params=params
+                "https://api.cedb.me/v1/users/all", params=params
             ) as response:
                 current_response = await response.json()
 
@@ -513,14 +513,14 @@ async def get_api_page_data(
     session = await http_session.get_session()
     # if type is user
     if type == "user":
-        async with session.get(f"https://cedb.me/api/user/{ce_id}") as response:
+        async with session.get(f"https://api.cedb.me/v1/user/{ce_id}") as response:
             json_response = await response.json()
             if len(json_response) == 0:
                 return None
             return _ce_to_user(json_response=json_response)
 
     elif type == "game":
-        async with session.get(f"https://cedb.me/api/game/{ce_id}") as response:
+        async with session.get(f"https://api.cedb.me/v1/game/{ce_id}") as response:
             json_response = await response.json()
             if len(json_response) == 0:
                 return None
