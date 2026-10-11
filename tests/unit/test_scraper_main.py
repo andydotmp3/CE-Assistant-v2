@@ -191,7 +191,13 @@ class TestLoopLocking:
 
         mocks["finish_run"].assert_called_once_with("run-1")
 
-    def test_lock_released_on_exception(self):
+    def test_lock_held_on_exception(self):
+        """A failed iteration must NOT release the lock -- clearing it here
+        would erase the crash signal that is_loop_running() depends on to
+        trigger a recovery pass on the next iteration (see the 2026-10-02
+        incident: a lock that always clears on failure let get_last_loop()
+        treat every failed attempt as a successful one)."""
+
         def _raise_and_shutdown(**kw):
             scraper_main._shutdown = True
             raise RuntimeError("boom")
@@ -204,7 +210,7 @@ class TestLoopLocking:
         with contextmanager_from_patches(patches) as mocks:
             _run_main()
 
-        mocks["finish_run"].assert_called_once_with("run-1")
+        mocks["finish_run"].assert_not_called()
 
     def test_lock_check_reevaluated_each_iteration(self):
         """Lock check returns True on first call (skip), False on second (run), then shutdown."""
@@ -239,6 +245,68 @@ class TestLoopLocking:
             _run_main()
 
         assert iteration_count == 1
+
+
+class TestRecoveryAfterFailure:
+    def test_failed_iteration_triggers_recovery_on_next(self):
+        """A failed iteration must leave is_loop_running() reporting True,
+        so the very next iteration enters recovery mode (send_updates=False)
+        rather than running as if nothing happened."""
+        iterations = []
+
+        async def _fail_then_succeed(**kw):
+            iterations.append(kw)
+            if len(iterations) == 1:
+                raise RuntimeError("cedb.me returned HTML")
+            scraper_main._shutdown = True
+            return {
+                "games_updated": 0,
+                "users_updated": 0,
+                "rolls_updated": 0,
+                "updates_generated": 0,
+            }
+
+        # Lock state is driven by whether finish_loop_run has been called yet.
+        lock_held = {"value": False}
+
+        def _is_running():
+            return lock_held["value"]
+
+        def _start(*a, **kw):
+            lock_held["value"] = True
+            return f"run-{len(iterations)}"
+
+        def _finish(*a, **kw):
+            lock_held["value"] = False
+
+        with (
+            patch.object(
+                scraper_main.SupabaseReader,
+                "is_loop_running",
+                side_effect=_is_running,
+            ),
+            patch.object(scraper_main.SupabaseReader, "cleanup_delivered_updates"),
+            patch.object(scraper_main.SupabaseReader, "cleanup_completed_commands"),
+            patch.object(
+                scraper_main.SupabaseReader, "get_pending_commands", return_value=[]
+            ),
+            patch.object(scraper_main.SupabaseReader, "recent_full_scrape"),
+            patch.object(
+                scraper_main.SupabaseReader, "start_loop_run", side_effect=_start
+            ),
+            patch.object(
+                scraper_main.SupabaseReader, "finish_loop_run", side_effect=_finish
+            ),
+            patch.object(scraper_main.SupabaseReader, "write_scraper_update"),
+            patch.object(scraper_main, "process_loop", side_effect=_fail_then_succeed),
+            patch("scraper_main.http_session.close_session", new_callable=AsyncMock),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            _run_main()
+
+        assert len(iterations) == 2
+        assert iterations[0]["send_updates"] is True  # not recovering yet
+        assert iterations[1]["send_updates"] is False  # recovering after failure
 
 
 class TestCommandProcessing:

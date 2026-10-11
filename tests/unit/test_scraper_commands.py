@@ -69,6 +69,45 @@ class TestStartLoopRun:
             assert inserted["fullscrape"] is False
 
 
+class TestGetLastLoop:
+    def test_excludes_unfinished_runs(self):
+        """A run that never finished (start still True -- crashed or failed)
+        must not be eligible, or a failed attempt's own ran_at would poison
+        the incremental window (see the 2026-10-02 incident)."""
+        mock_table = MagicMock()
+        with patch.object(SupabaseReader, "supabase") as mock_sb:
+            mock_sb.table.return_value = mock_table
+            mock_table.select.return_value = mock_table
+            mock_table.eq.return_value = mock_table
+            mock_table.order.return_value = mock_table
+            mock_table.limit.return_value = mock_table
+            mock_table.execute.return_value = MagicMock(
+                data=[{"ran_at": "2026-10-01T22:09:48+00:00"}]
+            )
+
+            SupabaseReader.get_last_loop(offset=False)
+
+            mock_table.eq.assert_called_once_with("start", False)
+
+    def test_returns_offset_timestamp_from_finished_run(self):
+        mock_table = MagicMock()
+        with patch.object(SupabaseReader, "supabase") as mock_sb:
+            mock_sb.table.return_value = mock_table
+            mock_table.select.return_value = mock_table
+            mock_table.eq.return_value = mock_table
+            mock_table.order.return_value = mock_table
+            mock_table.limit.return_value = mock_table
+            mock_table.execute.return_value = MagicMock(
+                data=[{"ran_at": "2026-10-02T12:00:00+00:00"}]
+            )
+
+            result = SupabaseReader.get_last_loop(offset=False)
+
+            assert result == datetime.datetime(
+                2026, 10, 2, 12, 0, 0, tzinfo=datetime.UTC
+            )
+
+
 class TestRecentFullScrape:
     def test_true_when_a_recent_fullscrape_row_exists(self):
         mock_table = MagicMock()
@@ -81,7 +120,25 @@ class TestRecentFullScrape:
             mock_table.execute.return_value = MagicMock(data=[{"id": "run-1"}])
 
             assert SupabaseReader.recent_full_scrape(hours=24) is True
-            mock_table.eq.assert_called_once_with("fullscrape", True)
+            mock_table.eq.assert_any_call("fullscrape", True)
+
+    def test_excludes_fullscrape_row_that_never_finished(self):
+        """A full_scrape attempt that crashed/failed before completing must
+        not count -- otherwise recent_full_scrape() reports a full scrape
+        happened today when nothing was actually scraped, and the daily
+        auto-trigger never fires to make up for it."""
+        mock_table = MagicMock()
+        with patch.object(SupabaseReader, "supabase") as mock_sb:
+            mock_sb.table.return_value = mock_table
+            mock_table.select.return_value = mock_table
+            mock_table.eq.return_value = mock_table
+            mock_table.gte.return_value = mock_table
+            mock_table.limit.return_value = mock_table
+            mock_table.execute.return_value = MagicMock(data=[])
+
+            SupabaseReader.recent_full_scrape(hours=24)
+
+            mock_table.eq.assert_any_call("start", False)
 
     def test_false_when_no_recent_fullscrape_row(self):
         mock_table = MagicMock()
