@@ -2,7 +2,7 @@ import asyncio
 
 import aiohttp
 
-_DEFAULT_HEADERS = {"User-Agent": "andy's-super-duper-bot/0.1"}
+_DEFAULT_HEADERS = {"User-Agent": "andy's-super-duper-bot/0.1 achoo-api"}
 _DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=120, sock_connect=30, sock_read=120)
 
 _session: aiohttp.ClientSession | None = None
